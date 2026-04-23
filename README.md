@@ -1,4 +1,4 @@
-# Cognisys
+# AxionSys
 
 ## Local AI Systems Debugging Intelligence
 
@@ -6,7 +6,7 @@
 
 ## Overview
 
-Cognisys is a local-first AI system that performs hybrid retrieval over codebases and logs, applies reranking for precision, and generates structured root-cause analysis and fixes.
+AxionSys is a local-first AI system that performs hybrid retrieval over codebases and logs, applies reranking for precision, and generates structured root-cause analysis and fixes.
 
 It is designed to operate fully on consumer hardware with adaptive model routing.
 
