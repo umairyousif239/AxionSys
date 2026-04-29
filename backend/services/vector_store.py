@@ -9,7 +9,7 @@ class VectorStore:
     def build(self, texts):
         embeddings = np.array(texts)
         
-        dim = embeddings.shape(1)
+        dim = embeddings.shape[1]
         self.index = faiss.IndexFlatL2(dim)
         self.index.add(embeddings)
     

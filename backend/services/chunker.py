@@ -4,8 +4,8 @@ def chunk_code(text, chunk_size=500, overlap=100):
     
     while start < len(text):
         end = start + chunk_size
-        chunks = text[start:end]
-        chunks.append(chunks)
+        chunk = text[start:end]
+        chunks.append(chunk)
         start += chunk_size - overlap
     
     return chunks

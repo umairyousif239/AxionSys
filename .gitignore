@@ -1,3 +1,15 @@
-.env
-.venv
+# Data
+data/
+*.faiss
+*.pkl
+*.npy
+
+# Python
 __pycache__/
+*.pyc
+
+# Env
+.env
+
+# Models cache
+.cache/
