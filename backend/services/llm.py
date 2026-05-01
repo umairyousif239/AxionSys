@@ -17,7 +17,7 @@ def generate(model: str, prompt: str):
     return data.get("response", "")
 
 def run_llm(task: str, prompt: str):
-    if task in ["root_cause", "fix"]:
+    if task in ["root_cause", "fix", "rerank"]:
         model = QWEN_MODEL
     else:
         model = MISTRAL_MODEL
