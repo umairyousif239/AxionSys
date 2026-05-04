@@ -30,5 +30,7 @@ def run_llm(task: str, prompt: str):
         return generate(QWEN_MODEL, prompt, temperature=0.2, think=False)
     elif task == "rerank":
         return generate(QWEN_MODEL, prompt, temperature=0.3, think=False)
+    elif task == "query_gen":
+        return generate(QWEN_MODEL, prompt, temperature=0.2, think=False)
     else:
         return generate(MISTRAL_MODEL, prompt, temperature=0.3)
