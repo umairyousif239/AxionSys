@@ -2,6 +2,7 @@ from pipelines.ingest_repo import ingest
 from backend.services.bm25_store import BM25Store
 from backend.services.hybrid_retriever import hybrid_retrieve
 from backend.services.reranker import rerank
+from backend.services.root_cause import generate_root_cause
 
 # ------------------------
 # CONFIG
@@ -118,3 +119,21 @@ for q_num, q in enumerate(queries, start=1):
     print(f"Top-1: {get_label(top, docs, meta):<35} final={top['final_score']:.3f}")
 
     print("\n========================\n")
+    
+    # ------------------------
+    # ROOT CAUSE GENERATION
+    # ------------------------
+    try:
+        for r in reranked:
+            r["file"] = get_label(r, docs, meta)
+        rc = generate_root_cause(q, reranked, top_k=3)
+
+        print("\n--- ROOT CAUSE ---")
+        print(f"Cause:      {rc['root_cause']}")
+        print(f"Files:      {', '.join(rc['affected_files'])}")
+        print(f"Reasoning:  {rc['reasoning']}")
+        print(f"Fix:        {rc['fix']}")
+        print(f"Confidence: {rc['confidence']:.2f}")
+
+    except Exception as e:
+        print("\n[Root Cause Error]", str(e))
