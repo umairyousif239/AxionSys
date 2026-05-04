@@ -1,8 +1,10 @@
 from pipelines.ingest_repo import ingest
+
 from backend.services.bm25_store import BM25Store
 from backend.services.hybrid_retriever import hybrid_retrieve
 from backend.services.reranker import rerank
 from backend.services.root_cause import generate_root_cause
+from backend.services.fix_generator import generate_fix
 
 # ------------------------
 # CONFIG
@@ -121,7 +123,7 @@ for q_num, q in enumerate(queries, start=1):
     print("\n========================\n")
     
     # ------------------------
-    # ROOT CAUSE GENERATION
+    # ROOT CAUSE + FIX GENERATION
     # ------------------------
     try:
         for r in reranked:
@@ -135,5 +137,22 @@ for q_num, q in enumerate(queries, start=1):
         print(f"Fix:        {rc['fix']}")
         print(f"Confidence: {rc['confidence']:.2f}")
 
+        # ------------------------
+        # FIX GENERATION
+        # ------------------------
+        fix = generate_fix(rc, reranked, top_k=3)
+
+        print("\n--- FIX ---")
+        if fix.get("diff"):
+            print("Diff:")
+            print(fix["diff"])
+        else:
+            if fix.get("diff_warning"):
+                print(f"[!] {fix['diff_warning']}")
+
+        print(f"\nExplanation: {fix['explanation']}")
+        print(f"File:        {fix.get('affected_file', 'unknown')}")
+        print(f"Confidence:  {fix['confidence']:.2f}")
+
     except Exception as e:
-        print("\n[Root Cause Error]", str(e))
+        print("\n[Pipeline Error]", str(e))

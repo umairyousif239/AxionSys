@@ -3,36 +3,32 @@ from backend.config import QWEN_MODEL, MISTRAL_MODEL
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 
-def generate(model: str, prompt: str, temperature: float = 0.2):
-    response = requests.post(OLLAMA_URL, json={
+def generate(model: str, prompt: str, temperature: float = 0.2, think: bool = True):
+    payload = {
         "model": model,
         "prompt": prompt,
         "stream": False,
         "options": {
-            "temperature": temperature
-        }
-    })
+            "temperature": temperature,
+            "num_predict": 4096,
+        },
+        "think": think
+    }
+
+    response = requests.post(OLLAMA_URL, json=payload, timeout=120)
 
     if response.status_code != 200:
         raise RuntimeError(f"Ollama error: {response.text}")
 
     data = response.json()
-    return data.get("response", "")
+    return data.get("response", "").strip()
 
 def run_llm(task: str, prompt: str):
-    """
-    Router for different LLM tasks
-    """
-    if task in ["root_cause", "fix"]:
-        model = QWEN_MODEL
-        temperature = 0.2   # stable reasoning
-
+    if task == "root_cause":
+        return generate(QWEN_MODEL, prompt, temperature=0.2, think=True)
+    elif task == "fix":
+        return generate(QWEN_MODEL, prompt, temperature=0.2, think=False)
     elif task == "rerank":
-        model = QWEN_MODEL
-        temperature = 0.0   # deterministic ordering
-
+        return generate(QWEN_MODEL, prompt, temperature=0.3, think=False)
     else:
-        model = MISTRAL_MODEL
-        temperature = 0.3
-
-    return generate(model, prompt, temperature)
+        return generate(MISTRAL_MODEL, prompt, temperature=0.3)
