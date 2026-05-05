@@ -1,85 +1,165 @@
 # AxionSys
 
-## Local AI Systems Debugging Intelligence
+> Local-first AI debugging intelligence. Drop in a repo and an error log — AxionSys tells you exactly what's broken, why, and gives you the fix.
 
 ---
 
 ## Overview
 
-AxionSys is a local-first AI system that performs hybrid retrieval over codebases and logs, applies reranking for precision, and generates structured root-cause analysis and fixes.
+AxionSys is a local-first AI system that ingests codebases and error logs, performs hybrid retrieval across code chunks, applies LLM reranking for precision, and generates structured root-cause analysis with actionable code fixes.
 
-It is designed to operate fully on consumer hardware with adaptive model routing.
+Built and tested entirely on an AMD Radeon RX 9060 XT 16GB. No cloud. No NVIDIA. No compromise.
+
+---
+
+## How It Works
+Log / Traceback / Error Message
+↓
+Log Parser (query extraction)
+↓
+Hybrid Retrieval (BM25 + FAISS)
+↓
+LLM Reranker (Qwen 3.5 9B)
+↓
+Dynamic Fusion Scoring
+↓
+Root Cause Engine (Qwen 3.5 9B)
+↓
+Fix Generator (unified diff)
+↓
+Structured JSON Output
 
 ---
 
 ## Key Capabilities
 
-- Hybrid Retrieval (BM25 + Vector Search)
-- Reranked context selection
-- Structured root cause analysis
-- Automated fix generation (diff output)
-- Hardware-aware inference execution
-- Full local deployment (no cloud dependency)
+- **Hybrid Retrieval** — combines dense vector search (FAISS) with sparse keyword search (BM25) for higher recall and precision than either alone
+- **LLM Reranking** — reranks retrieved chunks using Qwen 3.5 9B with dynamic alpha/beta fusion scoring that adapts based on retrieval agreement
+- **Multi-format Log Parsing** — accepts Python tracebacks, `.log` files, and free-form error messages and extracts structured queries automatically
+- **Causal Chain Reasoning** — traces bug propagation across multiple files rather than identifying symptoms in isolation
+- **Unified Diff Output** — generates git-style patches ready to apply directly to your codebase
+- **Fully Local** — runs entirely on consumer AMD hardware with no cloud dependency
 
 ---
 
-## Architecture
+## Demo Flow
 
-User Query  
-→ Hybrid Retrieval (BM25 + FAISS)  
-→ Reranking Layer  
-→ Context Builder  
-→ LLM Router (Mistral / Qwen 9B)  
-→ Structured Output Engine  
-→ Frontend Visualization  
-
----
-
-## Models
-
-- Mistral / LLaMA 3 → fast reasoning
-- Qwen 9B → deep analysis & fixes
-
----
-
-## Features
-
-### 1. Code Understanding
-Ask questions about any repository.
-
-### 2. Log Analysis
-Cluster and summarize system logs.
-
-### 3. Root Cause Engine
-Identify system failures with explanations.
-
-### 4. Fix Generator
-Generate code patches in diff format.
-
-### 5. Hardware Panel
-Show system usage and inference performance.
-
-### 6. Execution Trace View
-Visualize AI reasoning pipeline step-by-step.
+1. Point AxionSys at a repository
+2. Paste an error log or traceback
+3. Receive:
+   - Root cause with causal chain reasoning
+   - Affected files ranked by relevance
+   - Concrete fix in unified diff format
+   - Confidence scores for both diagnosis and fix
 
 ---
 
 ## Technical Stack
 
-- FastAPI
-- FAISS
-- BM25 (sparse retrieval)
-- Sentence Transformers
-- Ollama (local LLM runtime)
-- Mistral / Qwen models
+| Component | Technology |
+|---|---|
+| API | FastAPI |
+| Vector Search | FAISS |
+| Keyword Search | BM25 |
+| Embeddings | Sentence Transformers |
+| LLM Runtime | Ollama |
+| Reasoning Model | Qwen 3.5 9B |
+| Fast Tasks | Mistral 7B |
+| Hardware | AMD Radeon RX 9060 XT 16GB |
+
+---
+
+## Architecture
+backend/
+├── services/
+│   ├── loader.py          # repo file loading
+│   ├── chunker.py         # code chunking
+│   ├── embedding.py       # sentence transformer embeddings
+│   ├── vector_store.py    # FAISS index
+│   ├── bm25_store.py      # BM25 index
+│   ├── hybrid_retriever.py # fused retrieval
+│   ├── reranker.py        # LLM reranking
+│   ├── root_cause.py      # causal chain analysis
+│   ├── fix_generator.py   # unified diff generation
+│   ├── log_parser.py      # log/traceback parsing
+│   └── llm.py             # model router
+pipelines/
+├── ingest_repo.py         # repo ingestion pipeline
+├── ingest_logs.py         # log ingestion pipeline
+└── analyze.py             # full analysis pipeline
 
 ---
 
 ## Running Locally
 
-```bash
-ollama pull mistral:7b
-ollama pull llama3:8b
-ollama pull qwen:9b
+### Prerequisites
 
+```bash
+# Install Ollama
+# https://ollama.com
+
+ollama pull qwen3.5:9b
+ollama pull mistral:7b
+```
+
+### Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Run the API
+
+```bash
 uvicorn backend.main:app --reload
+```
+
+### Run analysis directly
+
+```bash
+python -m pipelines.analyze
+```
+
+---
+
+## Sample Output
+Error:   AttributeError: 'NoneType' object has no attribute 'cursor'
+Root Cause:
+ConnectionPool.get_connection() returns None when the connections
+list is empty, causing connect_db() to attempt calling .cursor()
+on None, which raises an AttributeError
+Affected Files: connection.py, pool.py
+Confidence: 0.95
+Fix (pool.py):
+--- pool.py
++++ pool.py
+@@ -1,8 +1,12 @@
+class ConnectionPool:
+def init(self):
+self.connections = []
+ def get_connection(self):
+   if not self.connections:
+       return None  # BUG: should create connection instead
+   if not self.connections:
+       conn = self._create_connection()
+       self.connections.append(conn)
+       return conn
+   return self.connections.pop()
+Fix Confidence: 0.90
+
+---
+
+## Judging Notes
+
+- **Application of Technology** — three-stage pipeline with hybrid retrieval, LLM reranking, and causal chain reasoning running fully on AMD consumer hardware
+- **Business Value** — targets enterprise teams with private codebases who cannot send code to cloud AI services
+- **Originality** — dynamic fusion scoring that adapts retrieval weighting based on agreement between dense and sparse signals
+- **Presentation** — end-to-end pipeline from raw error log to applied code fix with structured confidence scoring
+
+---
+
+## Hardware
+
+Built and daily-driven on AMD Radeon RX 9060 XT 16GB.
+All inference runs locally via Ollama with ROCm backend.
+No cloud API calls. No data leaves your machine.
