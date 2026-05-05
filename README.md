@@ -13,22 +13,17 @@ Built and tested entirely on an AMD Radeon RX 9060 XT 16GB. No cloud. No NVIDIA.
 ---
 
 ## How It Works
-Log / Traceback / Error Message
-                ↓
-Log Parser (query extraction)
-                ↓
-Hybrid Retrieval (BM25 + FAISS)
-                ↓
-LLM Reranker (Qwen 3.5 9B)
-                ↓
-Dynamic Fusion Scoring
-                ↓
-Root Cause Engine (Qwen 3.5 9B)
-                ↓
-Fix Generator (unified diff)
-                ↓
 
-Structured JSON Output
+| Stage | Component |
+|---|---|
+| 1 | Log / Traceback / Error Message |
+| 2 | Log Parser — query extraction |
+| 3 | Hybrid Retrieval — BM25 + FAISS |
+| 4 | LLM Reranker — Qwen 3.5 9B |
+| 5 | Dynamic Fusion Scoring |
+| 6 | Root Cause Engine — Qwen 3.5 9B |
+| 7 | Fix Generator — unified diff |
+| 8 | Structured JSON Output |
 
 ---
 
@@ -71,23 +66,26 @@ Structured JSON Output
 ---
 
 ## Architecture
+
+```
 backend/
 ├── services/
-│   ├── loader.py          # repo file loading
-│   ├── chunker.py         # code chunking
-│   ├── embedding.py       # sentence transformer embeddings
-│   ├── vector_store.py    # FAISS index
-│   ├── bm25_store.py      # BM25 index
-│   ├── hybrid_retriever.py # fused retrieval
-│   ├── reranker.py        # LLM reranking
-│   ├── root_cause.py      # causal chain analysis
-│   ├── fix_generator.py   # unified diff generation
-│   ├── log_parser.py      # log/traceback parsing
-│   └── llm.py             # model router
+│   ├── loader.py               # repo file loading
+│   ├── chunker.py              # code chunking
+│   ├── embedding.py            # sentence transformer embeddings
+│   ├── vector_store.py         # FAISS index
+│   ├── bm25_store.py           # BM25 index
+│   ├── hybrid_retriever.py     # fused retrieval
+│   ├── reranker.py             # LLM reranking
+│   ├── root_cause.py           # causal chain analysis
+│   ├── fix_generator.py        # unified diff generation
+│   ├── log_parser.py           # log/traceback parsing
+│   └── llm.py                  # model router
 pipelines/
-├── ingest_repo.py         # repo ingestion pipeline
-├── ingest_logs.py         # log ingestion pipeline
-└── analyze.py             # full analysis pipeline
+├── ingest_repo.py              # repo ingestion pipeline
+├── ingest_logs.py              # log ingestion pipeline
+└── analyze.py                  # full analysis pipeline
+```
 
 ---
 
@@ -96,14 +94,12 @@ pipelines/
 ### Prerequisites
 
 ```bash
-# Install Ollama
-# https://ollama.com
-
+# Install Ollama — https://ollama.com
 ollama pull qwen3.5:9b
 ollama pull mistral:7b
 ```
 
-### Install dependencies
+### Install Dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -115,7 +111,7 @@ pip install -r requirements.txt
 uvicorn backend.main:app --reload
 ```
 
-### Run analysis directly
+### Run Analysis Directly
 
 ```bash
 python -m pipelines.analyze
@@ -124,29 +120,38 @@ python -m pipelines.analyze
 ---
 
 ## Sample Output
+
+```
 Error:   AttributeError: 'NoneType' object has no attribute 'cursor'
+
 Root Cause:
-ConnectionPool.get_connection() returns None when the connections
-list is empty, causing connect_db() to attempt calling .cursor()
-on None, which raises an AttributeError
+  ConnectionPool.get_connection() returns None when the connections
+  list is empty, causing connect_db() to attempt calling .cursor()
+  on None, which raises an AttributeError
+
 Affected Files: connection.py, pool.py
-Confidence: 0.95
+Confidence:     0.95
+
 Fix (pool.py):
 --- pool.py
 +++ pool.py
 @@ -1,8 +1,12 @@
-class ConnectionPool:
-def init(self):
-self.connections = []
- def get_connection(self):
-   if not self.connections:
-       return None  # BUG: should create connection instead
-   if not self.connections:
-       conn = self._create_connection()
-       self.connections.append(conn)
-       return conn
-   return self.connections.pop()
+ class ConnectionPool:
+     def __init__(self):
+         self.connections = []
+
+     def get_connection(self):
+-        if not self.connections:
+-            return None  # BUG: should create connection instead
++        if not self.connections:
++            conn = self._create_connection()
++            self.connections.append(conn)
++            return conn
+
+         return self.connections.pop()
+
 Fix Confidence: 0.90
+```
 
 ---
 
@@ -161,6 +166,6 @@ Fix Confidence: 0.90
 
 ## Hardware
 
-Built and daily-driven on AMD Radeon RX 9060 XT 16GB.
-All inference runs locally via Ollama with ROCm backend.
+Built and daily-driven on **AMD Radeon RX 9060 XT 16GB**.  
+All inference runs locally via Ollama with ROCm backend.  
 No cloud API calls. No data leaves your machine.
