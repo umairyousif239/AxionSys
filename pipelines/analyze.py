@@ -7,8 +7,6 @@ from backend.services.log_parser import parse_log
 from pipelines.ingest_repo import ingest
 
 TOP_K = 5
-ALPHA = 0.7
-BETA = 0.3
 
 def get_label(r, docs, meta):
     content = r.get("content", "")
@@ -37,68 +35,68 @@ def fuse_scores(reranked):
 
     return sorted(reranked, key=lambda x: x["final_score"], reverse=True)
 
-def analyze(repo_path: str, log_text: str) -> list[dict]:
-    # ------------------------
-    # INGEST
-    # ------------------------
-    store, docs, meta = ingest(repo_path)
+def run_retrieval(entry, bm25, store, docs, meta):
+    queries = [entry["primary_query"]] + entry["secondary_queries"]
 
-    # ------------------------
-    # BUILD BM25
-    # ------------------------
-    bm25 = BM25Store()
-    bm25.build(docs)
+    all_retrieved = []
+    seen_contents = set()
 
-    # ------------------------
-    # PARSE LOG
-    # ------------------------
+    for q in queries:
+        retrieved = hybrid_retrieve(q, bm25, store, docs, top_k=TOP_K)
+        for r in retrieved:
+            content = r.get("content", "")
+            if content not in seen_contents:
+                seen_contents.add(content)
+                all_retrieved.append(r)
+
+    for i, r in enumerate(all_retrieved):
+        r["orig_rank"] = i + 1
+        r["hybrid_score"] = r["score"]
+        r["rerank_score"] = 0.0
+
+    reranked = rerank(entry["primary_query"], all_retrieved)
+    reranked = fuse_scores(reranked)
+
+    for r in reranked:
+        r["file"] = get_label(r, docs, meta)
+
+    return reranked
+
+def format_top_files(reranked, docs, meta):
+    return [
+        {
+            "file": get_label(r, docs, meta),
+            "final_score": round(r["final_score"], 3),
+            "hybrid_score": round(r["hybrid_score"], 3),
+            "rerank_score": round(r.get("rerank_score", 0), 3)
+        }
+        for r in reranked[:3]
+    ]
+
+def analyze(repo_path: str, log_text: str, store=None, docs=None, meta=None, bm25=None) -> list[dict]:
+    # only ingest if not provided
+    if store is None or docs is None or meta is None:
+        store, docs, meta = ingest(repo_path)
+
+    if bm25 is None:
+        bm25 = BM25Store()
+        bm25.build(docs)
+
     parsed = parse_log(log_text)
     results = []
 
     for entry in parsed:
-        queries = [entry["primary_query"]] + entry["secondary_queries"]
-
-        all_retrieved = []
-        seen_contents = set()
-
-        for q in queries:
-            retrieved = hybrid_retrieve(q, bm25, store, docs, top_k=TOP_K)
-            for r in retrieved:
-                content = r.get("content", "")
-                if content not in seen_contents:
-                    seen_contents.add(content)
-                    all_retrieved.append(r)
-
-        # ------------------------
-        # RERANK + FUSE
-        # ------------------------
-        for i, r in enumerate(all_retrieved):
-            r["orig_rank"] = i + 1
-            r["hybrid_score"] = r["score"]
-            r["rerank_score"] = 0.0
-
-        primary_query = entry["primary_query"]
-        reranked = rerank(primary_query, all_retrieved)
-        reranked = fuse_scores(reranked)
-
-        # ------------------------
-        # ATTACH FILENAMES
-        # ------------------------
-        for r in reranked:
-            r["file"] = get_label(r, docs, meta)
-
-        # ------------------------
-        # ROOT CAUSE + FIX
-        # ------------------------
-        rc = generate_root_cause(primary_query, reranked, top_k=3)
+        reranked = run_retrieval(entry, bm25, store, docs, meta)
+        rc = generate_root_cause(entry["primary_query"], reranked, top_k=3)
         fix = generate_fix(rc, reranked, top_k=3)
 
         results.append({
             "error": entry["error"],
             "type": entry["type"],
-            "primary_query": primary_query,
+            "primary_query": entry["primary_query"],
             "secondary_queries": entry["secondary_queries"],
             "files_mentioned": entry["files_mentioned"],
+            "top_files": format_top_files(reranked, docs, meta),
             "root_cause": rc,
             "fix": fix
         })
