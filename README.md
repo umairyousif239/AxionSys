@@ -14,19 +14,33 @@ Built and tested entirely on an AMD Radeon RX 9060 XT 16GB. No cloud. No NVIDIA.
 
 ## How It Works
 Log / Traceback / Error Message
-↓
+
+                ↓
+
 Log Parser (query extraction)
-↓
+
+                ↓
+
 Hybrid Retrieval (BM25 + FAISS)
-↓
+
+                ↓
+
 LLM Reranker (Qwen 3.5 9B)
-↓
+
+                ↓
+
 Dynamic Fusion Scoring
-↓
+
+                ↓
+
 Root Cause Engine (Qwen 3.5 9B)
-↓
+
+                ↓
+
 Fix Generator (unified diff)
-↓
+
+                ↓
+
 Structured JSON Output
 
 ---
