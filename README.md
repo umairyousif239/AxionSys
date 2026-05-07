@@ -1,18 +1,12 @@
-# AxionSys
-
 ![Alt Text](docs/logo.gif)
 
 > Local-first AI debugging intelligence. Drop in a repo and an error log — AxionSys tells you exactly what's broken, why, and gives you the fix.
-
----
 
 ## Overview
 
 AxionSys is a local-first AI system that ingests codebases and error logs, performs hybrid retrieval across code chunks, applies LLM reranking for precision, and generates structured root-cause analysis with actionable code fixes.
 
 Built and tested entirely on an AMD Radeon RX 9060 XT 16GB. No cloud. No NVIDIA. No compromise.
-
----
 
 ## How It Works
 
@@ -27,8 +21,6 @@ Built and tested entirely on an AMD Radeon RX 9060 XT 16GB. No cloud. No NVIDIA.
 | 7 | Fix Generator — unified diff |
 | 8 | Structured JSON Output |
 
----
-
 ## Key Capabilities
 
 - **Hybrid Retrieval** — combines dense vector search (FAISS) with sparse keyword search (BM25) for higher recall and precision than either alone
@@ -37,8 +29,6 @@ Built and tested entirely on an AMD Radeon RX 9060 XT 16GB. No cloud. No NVIDIA.
 - **Causal Chain Reasoning** — traces bug propagation across multiple files rather than identifying symptoms in isolation
 - **Unified Diff Output** — generates git-style patches ready to apply directly to your codebase
 - **Fully Local** — runs entirely on consumer AMD hardware with no cloud dependency
-
----
 
 ## Demo Flow
 
@@ -49,8 +39,6 @@ Built and tested entirely on an AMD Radeon RX 9060 XT 16GB. No cloud. No NVIDIA.
    - Affected files ranked by relevance
    - Concrete fix in unified diff format
    - Confidence scores for both diagnosis and fix
-
----
 
 ## Technical Stack
 
@@ -64,8 +52,6 @@ Built and tested entirely on an AMD Radeon RX 9060 XT 16GB. No cloud. No NVIDIA.
 | Reasoning Model | Qwen 3.5 9B |
 | Fast Tasks | Mistral 7B |
 | Hardware | AMD Radeon RX 9060 XT 16GB |
-
----
 
 ## Architecture
 
@@ -88,8 +74,6 @@ pipelines/
 ├── ingest_logs.py              # log ingestion pipeline
 └── analyze.py                  # full analysis pipeline
 ```
-
----
 
 ## Running Locally
 
@@ -118,8 +102,6 @@ uvicorn backend.main:app --reload
 ```bash
 python -m pipelines.analyze
 ```
-
----
 
 ## Sample Output
 
@@ -154,17 +136,6 @@ Fix (pool.py):
 
 Fix Confidence: 0.90
 ```
-
----
-
-## Judging Notes
-
-- **Application of Technology** — three-stage pipeline with hybrid retrieval, LLM reranking, and causal chain reasoning running fully on AMD consumer hardware
-- **Business Value** — targets enterprise teams with private codebases who cannot send code to cloud AI services
-- **Originality** — dynamic fusion scoring that adapts retrieval weighting based on agreement between dense and sparse signals
-- **Presentation** — end-to-end pipeline from raw error log to applied code fix with structured confidence scoring
-
----
 
 ## Hardware
 
