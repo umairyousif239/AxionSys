@@ -1,6 +1,6 @@
 # AxionSys
 
-![Alt Text](/docs/logo.gif)
+![Alt Text](docs/logo.gif)
 
 > Local-first AI debugging intelligence. Drop in a repo and an error log — AxionSys tells you exactly what's broken, why, and gives you the fix.
 
