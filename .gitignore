@@ -8,6 +8,9 @@ data/
 __pycache__/
 *.pyc
 
+# React
+node_modules/
+
 # Env
 .env
 
