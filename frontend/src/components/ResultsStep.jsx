@@ -120,7 +120,7 @@ function ResultCard({ result, index }) {
     const [activeTab, setActiveTab] = useState('root_cause')
     const rc = result.root_cause
     const fix = result.fix
-    const tabs = ['root_cause', 'fix', 'files', 'trace']
+    const tabs = ['root_cause', 'chain', 'fix', 'files', 'trace']
 
     return (
         <div className="fade-in" style={{
@@ -239,6 +239,154 @@ function ResultCard({ result, index }) {
                     ))}
                 </div>
                 </div>
+            </div>
+            )}
+
+            {activeTab === 'chain' && (
+            <div className="fade-in">
+                <div style={{ fontSize: '10px', color: 'var(--text-secondary)', letterSpacing: '0.1em', marginBottom: '24px' }}>
+                CALL CHAIN // BUG PROPAGATION PATH
+                </div>
+
+                {rc.call_chain && rc.call_chain.length > 0 ? (
+                <div style={{ overflowX: 'auto', paddingBottom: '12px' }}>
+                    <svg
+                    viewBox={`0 0 ${rc.call_chain.length * 180 - 20} 120`}
+                    style={{ width: '100%', minWidth: `${rc.call_chain.length * 180 - 20}px`, height: '120px' }}
+                    xmlns="http://www.w3.org/2000/svg"
+                    >
+                    {rc.call_chain.map((node, i) => {
+                        const x = i * 180
+                        const isLast = i === rc.call_chain.length - 1
+
+                        let boxColor, textColor, glowColor
+                        if (node.status === 'bug') {
+                        boxColor = '#451a03'
+                        textColor = '#f59e0b'
+                        glowColor = '#f59e0b'
+                        } else if (node.status === 'crash') {
+                        boxColor = '#450a0a'
+                        textColor = '#ef4444'
+                        glowColor = '#ef4444'
+                        } else {
+                        boxColor = '#1a1a1a'
+                        textColor = '#737373'
+                        glowColor = '#404040'
+                        }
+
+                        return (
+                        <g key={node.file}>
+                            {/* Arrow between nodes */}
+                            {!isLast && (
+                            <g>
+                                <line
+                                x1={x + 140} y1={60}
+                                x2={x + 170} y2={60}
+                                stroke="#2a2a2a"
+                                strokeWidth="1.5"
+                                />
+                                <polygon
+                                points={`${x + 175},56 ${x + 180},60 ${x + 175},64`}
+                                fill="#2a2a2a"
+                                />
+                            </g>
+                            )}
+
+                            {/* Node box */}
+                            <rect
+                            x={x} y={30}
+                            width={140} height={60}
+                            rx={3}
+                            fill={boxColor}
+                            stroke={glowColor}
+                            strokeWidth="1"
+                            style={{ filter: node.status === 'ok' ? 'none' : `drop-shadow(0 0 4px ${glowColor}40)` }}
+                            />
+
+                            {/* Status badge */}
+                            <rect
+                            x={x + 4} y={34}
+                            width={node.status.length * 7 + 8} height={14}
+                            rx={2}
+                            fill={`${glowColor}20`}
+                            />
+                            <text
+                            x={x + 8} y={44}
+                            fontSize="8"
+                            fill={glowColor}
+                            fontFamily="JetBrains Mono, monospace"
+                            letterSpacing="0.05em"
+                            >
+                            {node.status.toUpperCase()}
+                            </text>
+
+                            {/* File name */}
+                            <text
+                            x={x + 70} y={62}
+                            fontSize="11"
+                            fill={textColor}
+                            fontFamily="JetBrains Mono, monospace"
+                            textAnchor="middle"
+                            fontWeight={node.status === 'ok' ? '400' : '700'}
+                            >
+                            {node.file}
+                            </text>
+
+                            {/* Function name */}
+                            <text
+                            x={x + 70} y={76}
+                            fontSize="9"
+                            fill={`${textColor}99`}
+                            fontFamily="JetBrains Mono, monospace"
+                            textAnchor="middle"
+                            >
+                            {node.function}()
+                            </text>
+                        </g>
+                        )
+                    })}
+                    </svg>
+
+                    {/* Legend */}
+                    <div style={{
+                    display: 'flex',
+                    gap: '20px',
+                    marginTop: '20px',
+                    padding: '12px 16px',
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--bg-border)',
+                    borderRadius: '4px',
+                    }}>
+                    {[
+                        ['OK', 'var(--text-secondary)', 'Passes through'],
+                        ['CRASH', 'var(--accent-red)', 'Exception raised here'],
+                        ['BUG', 'var(--accent-amber)', 'Root cause originates here'],
+                    ].map(([label, color, desc]) => (
+                        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{
+                            width: '8px', height: '8px',
+                            borderRadius: '2px',
+                            background: color,
+                            boxShadow: label === 'OK' ? 'none' : `0 0 4px ${color}`
+                        }} />
+                        <span style={{ fontSize: '10px', color, letterSpacing: '0.08em' }}>{label}</span>
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>— {desc}</span>
+                        </div>
+                    ))}
+                    </div>
+                </div>
+                ) : (
+                <div style={{
+                    padding: '20px',
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--bg-border)',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    color: 'var(--text-secondary)'
+                }}>
+                    No call chain data available for this error.
+                </div>
+                )}
             </div>
             )}
 

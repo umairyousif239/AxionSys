@@ -118,6 +118,9 @@ if __name__ == "__main__":
         print(f"Files:      {', '.join(r['root_cause']['affected_files'])}")
         print(f"Reasoning:  {r['root_cause']['reasoning']}")
         print(f"Confidence: {r['root_cause']['confidence']:.2f}")
+        print("\n--- CALL CHAIN---")
+        for node in r['root_cause'].get('call_chain', []):
+            print(f" [{node['status'].upper()}] {node['file']} → {node['function']}()")
         print("\n--- FIX ---")
         if r['fix'].get('diff'):
             print(f"Diff:\n{r['fix']['diff']}")

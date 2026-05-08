@@ -51,6 +51,7 @@ TASK:
 2. Connect multiple files if needed
 3. Explain WHY the failure occurs step-by-step
 4. Suggest a concrete fix
+5. Extract the call chain as an ordered list of files from entry point to bug location
 
 STRICT RULES:
 - Only reference files present in the context
@@ -65,8 +66,18 @@ Return ONLY valid JSON:
     "affected_files": ["file1.py"],
     "reasoning": "...",
     "fix": "...",
-    "confidence": 0.0
+    "confidence": 0.0,
+    "call_chain": [
+        {{"file": "entry.py", "function": "entry_function", "status": "ok"}},
+        {{"file": "middle.py", "function": "middle_function", "status": "ok"}},
+        {{"file": "buggy.py", "function": "buggy_function", "status": "bug"}}
+    ]
 }}
+
+Status must be "ok", "bug", or "crash" for each file in the chain.
+"bug" = where the root cause originates
+"crash" = where the exception is raised
+"ok" = passes through but not the source
 """
 
 
@@ -80,7 +91,8 @@ def generate_root_cause(query, reranked_results, top_k=3):
             "affected_files": [],
             "reasoning": "",
             "fix": "",
-            "confidence": 0.0
+            "confidence": 0.0,
+            "call_chain": []
         }
 
     context = build_context(reranked_results, max_chunks=top_k)
@@ -96,21 +108,33 @@ def generate_root_cause(query, reranked_results, top_k=3):
             "affected_files": [],
             "reasoning": response[:500],
             "fix": "N/A",
-            "confidence": 0.0
+            "confidence": 0.0,
+            "call_chain": []
         }
 
-    # ------------------------
-    # SAFETY: enforce valid files
-    # ------------------------
+    # validate affected files
     valid_files = {r.get("file", "unknown_file") for r in reranked_results}
 
     if not data.get("affected_files"):
         data["affected_files"] = list(valid_files)[:2]
     else:
-        # filter hallucinated files
         data["affected_files"] = [
             f for f in data["affected_files"] if f in valid_files
         ] or list(valid_files)[:2]
+
+    # validate call chain
+    if not data.get("call_chain"):
+        # fallback: build chain from affected files
+        data["call_chain"] = [
+            {"file": f, "function": "unknown", "status": "bug" if i == len(data["affected_files"]) - 1 else "ok"}
+            for i, f in enumerate(data["affected_files"])
+        ]
+    else:
+        # ensure status values are valid
+        valid_statuses = {"ok", "bug", "crash"}
+        for node in data["call_chain"]:
+            if node.get("status") not in valid_statuses:
+                node["status"] = "ok"
 
     return data
 
