@@ -34,22 +34,23 @@ class AnalyzeRequest(BaseModel):
     session_id: str
     log_text: str
 
-def clone_github_repo(url: str) -> str:
-    repo_name = url.rstrip("/").split("/")[-1].replace(".git", "")
-    clone_path = f"data/repos/{repo_name}_{uuid.uuid4().hex[:6]}"
+def clone_github_repo(url: str) -> tuple[str, bool]:
+    parts = url.rstrip("/").replace(".git", "").split("/")
+    repo_name = "_".join(parts[-2:]) if len(parts) >= 2 else parts[-1]
+    clone_path = f"data/repos/{repo_name}"
     os.makedirs("data/repos", exist_ok=True)
+
+    if os.path.exists(clone_path):
+        return clone_path, True
 
     result = subprocess.run(
         ["git", "clone", url, clone_path],
-        capture_output=True,
-        text=True,
-        timeout=60
+        capture_output=True, text=True, timeout=60
     )
-
     if result.returncode != 0:
         raise RuntimeError(f"Git clone failed: {result.stderr}")
 
-    return clone_path
+    return clone_path, False
 
 
 @app.get("/health")
@@ -66,10 +67,11 @@ def ingest_repo(req: IngestRequest):
         raise HTTPException(status_code=400, detail="Provide either repo_path or github_url")
 
     cloned_path = None
+    was_cached = False
 
     try:
         if req.github_url:
-            repo_path = clone_github_repo(req.github_url)
+            repo_path, was_cached = clone_github_repo(req.github_url)
             cloned_path = repo_path
         else:
             repo_path = req.repo_path
@@ -89,6 +91,7 @@ def ingest_repo(req: IngestRequest):
             "bm25": bm25,
             "repo_path": repo_path,
             "cloned_path": cloned_path,
+            "was_cached": was_cached,
             "chunk_count": len(docs)
         }
 
@@ -96,6 +99,7 @@ def ingest_repo(req: IngestRequest):
             "session_id": session_id,
             "chunk_count": len(docs),
             "repo_path": repo_path,
+            "cached": was_cached,
             "status": "ingested"
         }
 
@@ -160,7 +164,7 @@ def delete_session(session_id: str):
 
     session = sessions.pop(session_id)
 
-    if session.get("cloned_path") and os.path.exists(session["cloned_path"]):
+    if session.get("cloned_path") and not session.get("was_cached") and os.path.exists(session["cloned_path"]):
         shutil.rmtree(session["cloned_path"], ignore_errors=True)
 
     return {"status": "deleted", "session_id": session_id}

@@ -3,7 +3,7 @@ from backend.services.llm import run_llm
 import json
 
 TRACEBACK_PATTERN = re.compile(
-    r"Traceback \(most recent call last\):.*?(\w+(?:Error|Exception|Warning)[^\n]*)",
+    r"Traceback \(most recent call last\):.*?((?:\w+\.)*\w*(?:Error|Exception|Warning)[^\n]*)",
     re.DOTALL
 )
 
@@ -18,6 +18,7 @@ FILE_LINE_PATTERN = re.compile(
 
 def extract_tracebacks(text: str) -> list[dict]:
     results = []
+    text = re.sub(r"^\s*[~^]+\s*$", "", text, flags=re.MULTILINE)
     for match in TRACEBACK_PATTERN.finditer(text):
         block = match.group(0)
         error_line = match.group(1).strip()

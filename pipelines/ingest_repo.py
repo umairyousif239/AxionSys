@@ -3,10 +3,10 @@ from backend.services.chunker import chunk_code
 from backend.services.embedding import embed_texts
 from backend.services.vector_store import VectorStore
 
-documents = []
-metadata = []
-
 def ingest(path):
+    documents = []
+    metadata = []
+    
     repo_files = load_repo(path)
     
     for file in repo_files:

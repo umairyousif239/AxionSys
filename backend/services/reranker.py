@@ -11,7 +11,7 @@ def _extract_json(text):
 
 def rerank(query, results):
     formatted = "\n".join(
-        f"[{i}] {r['content'][:250]}"
+        f"[{i}] {r['content'][:600]}"
         for i, r in enumerate(results)
     )
 

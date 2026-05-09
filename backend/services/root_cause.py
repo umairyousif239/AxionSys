@@ -58,6 +58,8 @@ STRICT RULES:
 - Do NOT invent files or functions
 - Use snippet evidence
 - Prefer higher-scoring snippets when reasoning
+- Do not suggest hardcoded test or mock data as a fix
+- Address the root cause directly, not symptoms or workarounds
 
 Return ONLY valid JSON:
 
@@ -84,7 +86,7 @@ Status must be "ok", "bug", or "crash" for each file in the chain.
 # ------------------------
 # MAIN FUNCTION
 # ------------------------
-def generate_root_cause(query, reranked_results, top_k=3):
+def generate_root_cause(query, reranked_results, top_k=5):
     if not reranked_results:
         return {
             "root_cause": "No results retrieved.",

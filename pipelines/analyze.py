@@ -6,7 +6,7 @@ from backend.services.fix_generator import generate_fix
 from backend.services.log_parser import parse_log
 from pipelines.ingest_repo import ingest
 
-TOP_K = 5
+TOP_K = 10
 
 def get_label(r, docs, meta):
     content = r.get("content", "")
@@ -41,6 +41,22 @@ def run_retrieval(entry, bm25, store, docs, meta):
     all_retrieved = []
     seen_contents = set()
 
+    # ✅ NEW: Pin traceback-mentioned files to the top first
+    mentioned_files = {
+        item["file"].split("/")[-1].split("\\")[-1]
+        for item in entry.get("files_mentioned", [])
+    }
+    for i, (doc, m) in enumerate(zip(docs, meta)):
+        fname = m["path"].split("/")[-1].split("\\")[-1]
+        if fname in mentioned_files and doc not in seen_contents:
+            seen_contents.add(doc)
+            all_retrieved.append({
+                "content": doc,
+                "score": 1.0,       # max hybrid score — it's literally in the traceback
+                "sources": ["traceback_pinned"]
+            })
+
+    # Hybrid search as before
     for q in queries:
         retrieved = hybrid_retrieve(q, bm25, store, docs, top_k=TOP_K)
         for r in retrieved:
@@ -87,8 +103,8 @@ def analyze(repo_path: str, log_text: str, store=None, docs=None, meta=None, bm2
 
     for entry in parsed:
         reranked = run_retrieval(entry, bm25, store, docs, meta)
-        rc = generate_root_cause(entry["primary_query"], reranked, top_k=3)
-        fix = generate_fix(rc, reranked, top_k=3)
+        rc = generate_root_cause(entry["primary_query"], reranked, top_k=5)
+        fix = generate_fix(rc, reranked, top_k=5)
 
         results.append({
             "error": entry["error"],
