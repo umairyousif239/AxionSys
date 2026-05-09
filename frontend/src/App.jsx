@@ -131,7 +131,7 @@ export default function App() {
                 borderRadius: '50%',
                 background: 'var(--accent-red)',
             }} />
-            AMD RX 9060 XT // LOCAL INFERENCE
+            LOCAL INFERENCE
             </div>
         </header>
 
