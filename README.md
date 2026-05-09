@@ -13,32 +13,38 @@ Built and tested entirely on an AMD Radeon RX 9060 XT 16GB. No cloud. No NVIDIA.
 | Stage | Component |
 |---|---|
 | 1 | Log / Traceback / Error Message |
-| 2 | Log Parser — query extraction |
-| 3 | Hybrid Retrieval — BM25 + FAISS |
-| 4 | LLM Reranker — Qwen 3.5 9B |
-| 5 | Dynamic Fusion Scoring |
-| 6 | Root Cause Engine — Qwen 3.5 9B |
-| 7 | Fix Generator — unified diff |
-| 8 | Structured JSON Output |
+| 2 | Log Parser — traceback, log error, and free-form parsing with query extraction |
+| 3 | Traceback-aware file pinning — files mentioned in the traceback are prioritised |
+| 4 | Hybrid Retrieval — BM25 + FAISS across all code chunks |
+| 5 | LLM Reranker — Qwen 3.5 9B |
+| 6 | Dynamic Fusion Scoring — adaptive alpha/beta weighting |
+| 7 | Root Cause Engine — Qwen 3.5 9B with causal chain reasoning |
+| 8 | Fix Generator — unified diff output |
+| 9 | Structured JSON Output |
 
 ## Key Capabilities
 
 - **Hybrid Retrieval** — combines dense vector search (FAISS) with sparse keyword search (BM25) for higher recall and precision than either alone
-- **LLM Reranking** — reranks retrieved chunks using Qwen 3.5 9B with dynamic alpha/beta fusion scoring that adapts based on retrieval agreement
-- **Multi-format Log Parsing** — accepts Python tracebacks, `.log` files, and free-form error messages and extracts structured queries automatically
-- **Causal Chain Reasoning** — traces bug propagation across multiple files rather than identifying symptoms in isolation
+- **Traceback-aware Pinning** — files explicitly mentioned in the traceback are pinned to the top of retrieval results with maximum score, ensuring ground-truth files always reach the LLM
+- **LLM Reranking** — reranks retrieved chunks using Qwen 3.5 9B with dynamic alpha/beta fusion scoring that adapts based on agreement between hybrid and rerank scores
+- **Multi-format Log Parsing** — accepts Python tracebacks (including Python 3.11+ `~~~`/`^^^` markers), `.log` files, and free-form error messages, extracting structured queries automatically
+- **Causal Chain Reasoning** — traces bug propagation across multiple files with call chain visualization showing OK / BUG / CRASH status per node
 - **Unified Diff Output** — generates git-style patches ready to apply directly to your codebase
+- **GitHub URL Ingestion** — paste a GitHub URL directly; repos are cloned once and cached locally so repeated runs skip the download
+- **Session Management** — each ingestion creates an isolated session with its own vector index, BM25 store, and results
 - **Fully Local** — runs entirely on consumer AMD hardware with no cloud dependency
 
 ## Demo Flow
 
-1. Point AxionSys at a repository
+1. Point AxionSys at a local repository path or GitHub URL
 2. Paste an error log or traceback
 3. Receive:
    - Root cause with causal chain reasoning
-   - Affected files ranked by relevance
+   - Call chain visualization across affected files
    - Concrete fix in unified diff format
    - Confidence scores for both diagnosis and fix
+   - Top retrieved files ranked by hybrid, rerank, and final score
+   - Full pipeline execution trace
 
 ## Technical Stack
 
@@ -51,6 +57,7 @@ Built and tested entirely on an AMD Radeon RX 9060 XT 16GB. No cloud. No NVIDIA.
 | LLM Runtime | Ollama |
 | Reasoning Model | Qwen 3.5 9B |
 | Fast Tasks | Mistral 7B |
+| Frontend | React + Vite |
 | Hardware | AMD Radeon RX 9060 XT 16GB |
 
 ## Architecture
@@ -59,20 +66,27 @@ Built and tested entirely on an AMD Radeon RX 9060 XT 16GB. No cloud. No NVIDIA.
 backend/
 ├── services/
 │   ├── loader.py               # repo file loading
-│   ├── chunker.py              # code chunking
+│   ├── chunker.py              # code chunking with overlap
 │   ├── embedding.py            # sentence transformer embeddings
 │   ├── vector_store.py         # FAISS index
 │   ├── bm25_store.py           # BM25 index
-│   ├── hybrid_retriever.py     # fused retrieval
+│   ├── hybrid_retriever.py     # fused BM25 + FAISS retrieval
 │   ├── reranker.py             # LLM reranking
 │   ├── root_cause.py           # causal chain analysis
 │   ├── fix_generator.py        # unified diff generation
-│   ├── log_parser.py           # log/traceback parsing
+│   ├── log_parser.py           # traceback + log + free-form parsing
 │   └── llm.py                  # model router
 pipelines/
 ├── ingest_repo.py              # repo ingestion pipeline
 ├── ingest_logs.py              # log ingestion pipeline
 └── analyze.py                  # full analysis pipeline
+frontend/
+└── src/
+    ├── App.jsx
+    └── components/
+        ├── IngestStep.jsx      # repo ingestion UI
+        ├── AnalyzeStep.jsx     # log input + execution trace
+        └── ResultsStep.jsx     # root cause, chain, fix, files, trace tabs
 ```
 
 ## Running Locally
@@ -81,7 +95,7 @@ pipelines/
 
 ```bash
 # Install Ollama — https://ollama.com
-ollama pull qwen3.5:9b
+ollama pull qwen3:9b
 ollama pull mistral:7b
 ```
 
@@ -91,10 +105,18 @@ ollama pull mistral:7b
 pip install -r requirements.txt
 ```
 
-### Run the API
+### Start the API
 
 ```bash
 uvicorn backend.main:app --reload
+```
+
+### Start the Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
 ### Run Analysis Directly
@@ -106,33 +128,34 @@ python -m pipelines.analyze
 ## Sample Output
 
 ```
-Error:   AttributeError: 'NoneType' object has no attribute 'cursor'
+Error:   AttributeError: 'NoneType' object has no attribute 'get'
 
 Root Cause:
-  ConnectionPool.get_connection() returns None when the connections
-  list is empty, causing connect_db() to attempt calling .cursor()
-  on None, which raises an AttributeError
+  In cache.py, self.store is initialized to None in __init__,
+  but get() calls self.store.get(key) without checking if store
+  exists. When get() is called on an uninitialized Cache instance,
+  it raises AttributeError.
 
-Affected Files: connection.py, pool.py
+Affected Files: cache.py, db.py
 Confidence:     0.95
 
-Fix (pool.py):
---- pool.py
-+++ pool.py
-@@ -1,8 +1,12 @@
- class ConnectionPool:
+Call Chain:
+  [OK]    db.py        __init__()
+  [OK]    cache.py     __init__()
+  [BUG]   cache.py     get()
+  [CRASH] cache.py     get()
+
+Fix (cache.py):
+--- cache.py
++++ cache.py
+@@ -1,7 +1,7 @@
+ class Cache:
      def __init__(self):
-         self.connections = []
+-        self.store = None
++        self.store = {}
 
-     def get_connection(self):
--        if not self.connections:
--            return None  # BUG: should create connection instead
-+        if not self.connections:
-+            conn = self._create_connection()
-+            self.connections.append(conn)
-+            return conn
-
-         return self.connections.pop()
+     def get(self, key):
+         return self.store.get(key)
 
 Fix Confidence: 0.90
 ```
